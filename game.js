@@ -5,6 +5,7 @@ let engineConfig;
 let userPlatform;
 let AIPlatform;
 let gameField;
+let winner;
 
 class Platform {
     constructor(positionX, positionY, width, height, AISpeed, score) {
@@ -31,16 +32,29 @@ class Ball {
 const initDefaultValues = () => {
     engineConfig = {
         fps: 30,
-        AIPlatformPadding: 35
+        AIPlatformPadding: 35,
+        delta: 0.35,
+        scoreToWin: 10,
+        isEndGame: false
     }
 
-    ball = new Ball(gameContainer.width / 2, gameContainer.height / 2, 5, 0, 15, 5);
+    ball = new Ball(gameContainer.width / 2, gameContainer.height / 2, 8, 0, 10, 3);
     gameField = new Platform(0, 0, gameContainer.width, gameContainer.height);
-    userPlatform = new Platform(0,(gameContainer.height - 70) / 2, 5, 70, 0, 0);
-    AIPlatform = new Platform(gameContainer.width - 5, (gameContainer.height - 70) / 2, 5, 100, 5, 0);
+    userPlatform = new Platform(0,(gameContainer.height - 70) / 2, 10, 100, 0, 0);
+    AIPlatform = new Platform(gameContainer.width - 10, (gameContainer.height - 100) / 2, 10, 100, 7, 0);
+}
+
+const isGameOver = () => {
+    if (userPlatform.score >= engineConfig.scoreToWin || AIPlatform.score >= engineConfig.scoreToWin) {
+        winner = userPlatform.score > AIPlatform.score ? 'You' : 'Computer';
+        userPlatform.score = 0;
+        AIPlatform.score = 0;
+        engineConfig.isEndGame = true;
+    }
 }
 
 const resetBall = () => {
+    isGameOver();
     ball.posX = gameContainer.width / 2;
     ball.posY = gameContainer.height / 2;
     ball.speedX *= -1;
@@ -64,7 +78,9 @@ const calculateGame = () => {
 
     if (ball.posX > gameContainer.width) {
         if (ball.posY > AIPlatform.posY && ball.posY < (AIPlatform.posY + AIPlatform.height)) {
+            const delta = ball.posY - (AIPlatform.posY + AIPlatform.height / 2);
             ball.speedX *= -1;
+            ball.speedY = delta * engineConfig.delta;
         } else {
             userPlatform.score += 1;
             resetBall();
@@ -73,7 +89,9 @@ const calculateGame = () => {
 
     if (ball.posX < 0) {
         if (ball.posY > userPlatform.posY && ball.posY < (userPlatform.posY + userPlatform.height)) {
+            const delta = ball.posY - (userPlatform.posY + userPlatform.height / 2);
             ball.speedX *= -1;
+            ball.speedY = delta * engineConfig.delta;
         } else {
             AIPlatform.score += 1;
             resetBall();
@@ -102,17 +120,41 @@ const drawScore = () => {
     gameContext.fillText(AIPlatform.score, gameContainer.width - 100, 100);
 }
 
+const drawLine = () => {
+    for (let i = 0, max = gameContainer.height; i < max; i += 40) {
+        drawRect('yellow', {
+            posX: gameContainer.width / 2 - 1,
+            posY: i,
+            width: 2,
+            height: 20
+        });
+    }
+}
+
 const drawGame = () => {
     drawRect('yellow', userPlatform); // User platform
     drawRect('yellow', AIPlatform); // AI platform
+    drawLine();
     drawCircle('yellow', ball); // Ball
     drawScore(); // Score
 }
 
+const drawWinningScreen = () => {
+    gameContext.fillStyle = 'yellow';
+    gameContext.fillText(`${winner} won the game!\nClick to play again!`, gameContainer.width / 2 - 100, gameContainer.height / 2);
+    gameContainer.addEventListener('click', (event) => {
+        engineConfig.isEndGame = false;
+    })
+}
+
 const gameEngine = () => {
     drawRect('black', gameField); // Initial field
-    calculateGame();
-    drawGame();
+    if (!engineConfig.isEndGame) {
+        calculateGame();
+        drawGame();
+    } else {
+        drawWinningScreen();
+    }
 }
 
 const calculateMousePosition = (event) => {
